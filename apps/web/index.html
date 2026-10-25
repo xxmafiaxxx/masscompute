@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MassCompute — the crowd-powered LLM grid</title>
+  <meta name="description" content="A crowdsourced GPU grid. Volunteers donate idle GPU time; everyone gets a free OpenAI-compatible LLM API." />
+  <style>
+    :root {
+      --bg: #07090d; --panel: #0d1119; --line: #1c2433; --text: #dbe4f0;
+      --dim: #7d8aa0; --brand: #4f8cff; --green: #2fbf71; --amber: #fbbf24; --red: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body { font: 15px/1.6 system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); }
+    a { color: var(--brand); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 1020px; margin: 0 auto; padding: 24px; }
+    header { display: flex; align-items: baseline; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+    header h1 { font-size: 20px; letter-spacing: 0.5px; }
+    header h1 span { color: var(--brand); }
+    header nav { margin-left: auto; display: flex; gap: 18px; font-size: 14px; }
+    .hero { padding: 56px 0 40px; }
+    .hero h2 { font-size: 40px; line-height: 1.15; letter-spacing: -1px; max-width: 700px; }
+    .hero h2 em { color: var(--brand); font-style: normal; }
+    .hero p { color: var(--dim); max-width: 640px; margin: 18px 0 28px; font-size: 17px; }
+    .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn { display: inline-block; padding: 11px 22px; border-radius: 10px; font-weight: 700; font-size: 15px; }
+    .btn.primary { background: var(--brand); color: #06122b; }
+    .btn.ghost { border: 1px solid var(--line); color: var(--text); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 34px 0; }
+    .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+    .stat b { display: block; font-size: 26px; letter-spacing: -0.5px; }
+    .stat span { color: var(--dim); font-size: 12.5px; }
+    section { padding: 34px 0; border-top: 1px solid var(--line); }
+    section h3 { font-size: 21px; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+    th { color: var(--dim); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .pill { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 12px; background: #182130; color: var(--dim); }
+    .pill.up { background: #12351f; color: var(--green); }
+    .pill.warn { background: #3a2c10; color: var(--amber); }
+    .pill.down { background: #3a1414; color: var(--red); }
+    code, pre { font: 12.5px/1.6 ui-monospace, 'Cascadia Code', monospace; }
+    pre { background: #0a0e15; border: 1px solid var(--line); border-radius: 10px; padding: 14px; overflow-x: auto; margin: 10px 0; }
+    pre b { color: var(--green); }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } .hero h2 { font-size: 30px; } }
+    .muted { color: var(--dim); font-size: 13.5px; }
+    ul.plain { color: var(--dim); font-size: 14px; padding-left: 18px; }
+    ul.plain li { margin: 6px 0; }
+    footer { padding: 30px 0 50px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>⚡<span>MassCompute</span></h1>
+      <nav><a href="#cluster">Cluster</a><a href="#leaderboard">Leaderboard</a><a href="#api">API</a><a href="#donate">Donate</a></nav>
+    </header>
+
+    <div class="hero">
+      <h2>One <em>LLM API</em>. Built out of spare GPU cycles.</h2>
+      <p>
+        MassCompute is a crowdsourced GPU grid. Volunteers run a tiny app that donates
+        idle GPU time; the grid serves a free, OpenAI-compatible chat API for everyone.
+        No datacenter, no cost — just shared silicon.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="#donate">Donate your GPU</a>
+        <a class="btn ghost" href="#api">Use the API</a>
+      </div>
+    </div>
+
+    <div class="grid" id="stats">
+      <div class="stat"><b id="s-nodes">–</b><span>donors online</span></div>
+      <div class="stat"><b id="s-avail">–</b><span>accepting work</span></div>
+      <div class="stat"><b id="s-tokps">–</b><span>tokens/sec (1 min)</span></div>
+      <div class="stat"><b id="s-total">–</b><span>tokens served</span></div>
+      <div class="stat"><b id="s-models">–</b><span>models live</span></div>
+    </div>
+
+    <section id="cluster">
+      <h3>Cluster nodes</h3>
+      <table>
+        <thead><tr><th>Node</th><th>GPUs</th><th>OS</th><th>Models</th><th class="num">Rep</th><th class="num">Session tokens</th><th>State</th></tr></thead>
+        <tbody id="nodes"><tr><td colspan="7" class="muted">loading…</td></tr></tbody>
+      </table>
+      <p class="muted" style="margin-top:10px">
+        Reputation grows with successful jobs and verification probes; nodes that return
+        wrong answers are quarantined and stop receiving traffic. Tokens are counted
+        "verified" only from reputable nodes.
+      </p>
+    </section>
+
+    <section id="leaderboard">
+      <h3>Donor leaderboard</h3>
+      <table>
+        <thead><tr><th>#</th><th>Donor</th><th class="num">Verified tokens</th><th class="num">All tokens</th><th class="num">Rep</th><th>Status</th></tr></thead>
+        <tbody id="lb"><tr><td colspan="6" class="muted">loading…</td></tr></tbody>
+      </table>
+    </section>
+
+    <section id="api">
+      <h3>Use the API</h3>
+      <p class="muted">OpenAI-compatible. Point any OpenAI SDK at this host. Get a free key (250k tokens/day) via <code>POST /keys</code>; keyless calls get 4k tokens/day.</p>
+      <div class="cols">
+        <div>
+          <pre><b>curl</b> https://HOST/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer mc_YOUR_KEY" \
+  -d '{
+    "model": "qwen2.5-3b-q4km",
+    "messages": [{"role":"user","content":"Hello!"}]
+  }'</pre>
+          <p class="muted">Add <code>"stream": true</code> for SSE streaming. <code>GET /v1/models</code> lists what the grid serves right now.</p>
+        </div>
+        <div>
+          <h4 style="margin-bottom:8px">Live models</h4>
+          <table><tbody id="models"><tr><td class="muted">loading…</td></tr></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <section id="donate">
+      <h3>Donate your GPU</h3>
+      <ul class="plain">
+        <li>Download the MassCompute worker (Windows installer or portable — macOS/Linux builds on the roadmap).</li>
+        <li>Pick a model tier that fits your VRAM, set idle thresholds, hit <b>Donate</b>.</li>
+        <li>Only pinned, SHA-256-verified open-weight models run — no arbitrary code, ever. Prompts transit your machine; don't donate if that's not okay.</li>
+        <li>The node stays idle while you use the PC (idle timer, GPU-busy detection, battery check, optional schedule).</li>
+      </ul>
+      <pre><b># CLI alternative (developers)</b>
+npm install -g @masscompute/worker
+masscompute --coordinator wss://HOST --donate</pre>
+    </section>
+
+    <footer>
+      MassCompute — Folding@home economics, OpenAI-compatible face. Grid capacity is a commons:
+      be nice, don't hammer it, and consider donating your own GPU.
+    </footer>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const fmt = (n) => (n ?? 0).toLocaleString();
+    const statePill = (s) => {
+      const cls = s === 'available' ? 'up' : s === 'warming' ? 'warn' : 'down';
+      return `<span class="pill ${cls}">${s}</span>`;
+    };
+
+    async function refresh() {
+      try {
+        const stats = await (await fetch('/stats')).json();
+        $('s-nodes').textContent = fmt(stats.nodes.online);
+        $('s-avail').textContent = fmt(stats.nodes.available);
+        $('s-tokps').textContent = fmt(stats.metrics.tokensPerSecond);
+        $('s-total').textContent = fmt(stats.metrics.tokensTotal);
+        const liveModels = Object.keys(stats.models ?? {}).length;
+        $('s-models').textContent = fmt(liveModels);
+        $('nodes').innerHTML = (stats.nodes.detail ?? []).map((n) => `
+          <tr>
+            <td><code>${n.name ? escapeHtml(n.name) : n.tokenPrefix}</code></td>
+            <td>${escapeHtml(n.gpus.join(', ') || 'CPU')}</td>
+            <td>${n.os}</td>
+            <td>${n.models.map((m) => `<span class="pill">${escapeHtml(m)}</span>`).join(' ')}</td>
+            <td class="num">${n.rep.toFixed(2)}</td>
+            <td class="num">${fmt(n.sessionTokens)}</td>
+            <td>${statePill(n.state)}</td>
+          </tr>`).join('') || '<tr><td colspan="7" class="muted">no donors online — be the first</td></tr>';
+      } catch { /* coordinator hiccup; retry next tick */ }
+
+      try {
+        const lb = await (await fetch('/leaderboard')).json();
+        $('lb').innerHTML = (lb.data ?? []).slice(0, 20).map((r, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${escapeHtml(r.name)}</td>
+            <td class="num">${fmt(r.verifiedTokens)}</td>
+            <td class="num">${fmt(r.tokensTotal)}</td>
+            <td class="num">${r.rep.toFixed(2)}</td>
+            <td>${r.online ? '<span class="pill up">online</span>' : '<span class="pill">offline</span>'}</td>
+          </tr>`).join('') || '<tr><td colspan="6" class="muted">no donors yet</td></tr>';
+      } catch { /* ignore */ }
+
+      try {
+        const models = await (await fetch('/v1/models')).json();
+        $('models').innerHTML = (models.data ?? []).map((m) => `
+          <tr><td><code>${escapeHtml(m.id)}</code></td><td class="num">${m.masscompute.nodesServing} node(s)</td></tr>`).join('');
+      } catch { /* ignore */ }
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

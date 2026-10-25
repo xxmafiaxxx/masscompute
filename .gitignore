@@ -1,0 +1,16 @@
+node_modules/
+dist/
+out/
+release/
+*.log
+.env
+.env.*
+!.env.example
+scratch/
+data/
+.tmp-*
+apps/worker/bin/
+apps/worker/models/
+*.gguf
+.DS_Store
+.zcode/

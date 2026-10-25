@@ -1,0 +1,59 @@
+{
+  "name": "@masscompute/worker",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "MassCompute donor worker — donate spare GPU time to the grid. One command: masscompute",
+  "author": "MassCompute <ops@masscompute.app>",
+  "license": "MIT",
+  "main": "dist/main.js",
+  "bin": {
+    "masscompute": "./bin/masscompute.cjs"
+  },
+  "files": [
+    "bin/",
+    "dist/masscompute.mjs",
+    "dist/main.js",
+    "src/tray.html",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build:core": "esbuild src/core/index.ts --bundle --platform=node --format=esm --outfile=dist/core.mjs --banner:js=\"import{createRequire as __mcCr}from'node:module';const require=__mcCr(import.meta.url);\"",
+    "build:cli": "esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=dist/masscompute.mjs --banner:js=\"import{createRequire as __mcCr}from'node:module';const require=__mcCr(import.meta.url);\"",
+    "build:main": "esbuild src/main.ts --bundle --platform=node --format=cjs --outfile=dist/main.js --external:electron",
+    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=dist/masscompute.mjs --banner:js=\"import{createRequire as __mcCr}from'node:module';const require=__mcCr(import.meta.url);\" && esbuild src/core/index.ts --bundle --platform=node --format=esm --outfile=dist/core.mjs --banner:js=\"import{createRequire as __mcCr}from'node:module';const require=__mcCr(import.meta.url);\" && esbuild src/main.ts --bundle --platform=node --format=cjs --outfile=dist/main.js --external:electron",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "npm run build:core && node dist/core.mjs --dev",
+    "start": "npm run build:cli && node dist/masscompute.mjs",
+    "pack": "npm run build:cli && npm pack",
+    "app": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --win nsis portable",
+    "dist:dir": "npm run build && electron-builder --win --dir"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@masscompute/protocol": "*",
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.0",
+    "electron": "33.2.0",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.0",
+    "vitest": "^2.1.0"
+  },
+  "build": {
+    "appId": "app.masscompute.worker",
+    "productName": "MassCompute",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "src/tray.html"],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }]
+    },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true },
+    "linux": { "target": ["AppImage"], "category": "Utility" },
+    "mac": { "target": ["dmg"] }
+  }
+}

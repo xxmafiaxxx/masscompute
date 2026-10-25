@@ -1,0 +1,32 @@
+# fly.io deployment — free shared-cpu-1x VM + 1GB volume for the coordinator.
+app = "masscompute"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  KEY_DAILY_TOKENS = "250000"
+  ANON_DAILY_TOKENS = "4000"
+  PROBE_INTERVAL_MS = "600000"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[mounts]
+  source = "masscompute_data"
+  destination = "/data"

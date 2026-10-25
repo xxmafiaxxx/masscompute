@@ -1,0 +1,26 @@
+{
+  "name": "@masscompute/coordinator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/coordinator.mjs --banner:js=\"import{createRequire}from'node:module';const require=createRequire(import.meta.url);\"",
+    "start": "node dist/coordinator.mjs",
+    "dev": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/coordinator.mjs --banner:js=\"import{createRequire}from'node:module';const require=createRequire(import.meta.url);\" && node --watch dist/coordinator.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.0",
+    "@fastify/static": "^8.0.0",
+    "@masscompute/protocol": "*",
+    "fastify": "^5.2.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.0",
+    "esbuild": "^0.24.0",
+    "vitest": "^2.1.0"
+  }
+}

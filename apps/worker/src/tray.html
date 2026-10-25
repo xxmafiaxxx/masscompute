@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MassCompute</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      font: 14px/1.5 system-ui, sans-serif;
+      background: #0c0f14; color: #dfe6ee;
+      margin: 0; padding: 18px;
+      max-width: 480px; margin: 0 auto;
+    }
+    h1 { font-size: 18px; margin: 0 0 2px; }
+    .sub { color: #7d8aa0; font-size: 12px; margin-bottom: 16px; }
+    .card {
+      background: #131822; border: 1px solid #222b3a; border-radius: 10px;
+      padding: 14px; margin-bottom: 12px;
+    }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; }
+    label { color: #aab6c8; font-size: 13px; }
+    input, select {
+      background: #0c0f14; border: 1px solid #2a3446; color: #dfe6ee;
+      border-radius: 6px; padding: 6px 8px; font-size: 13px;
+    }
+    input[type="text"], input[type="number"] { width: 180px; }
+    .toggle {
+      position: relative; width: 46px; height: 26px; border-radius: 13px;
+      background: #2a3446; cursor: pointer; transition: background .2s;
+      border: none; padding: 0;
+    }
+    .toggle.on { background: #2fbf71; }
+    .toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+      border-radius: 50%; background: #fff; transition: left .2s;
+    }
+    .toggle.on::after { left: 23px; }
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 12px;
+      font-size: 12px; font-weight: 600; background: #2a3446; color: #aab6c8;
+    }
+    .badge.available { background: #12402a; color: #4ade80; }
+    .badge.paused { background: #402412; color: #fbbf24; }
+    #log {
+      height: 120px; overflow-y: auto; background: #090b10; border: 1px solid #1a2230;
+      border-radius: 8px; padding: 8px; font: 11px/1.5 ui-monospace, monospace; color: #8fa1b8;
+    }
+    .state-line { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .note { color: #66748c; font-size: 11px; line-height: 1.45; }
+    button.save {
+      background: #2fbf71; border: none; color: #06130c; font-weight: 700;
+      padding: 8px 18px; border-radius: 8px; cursor: pointer; float: right;
+    }
+  </style>
+</head>
+<body>
+  <h1>⚡ MassCompute</h1>
+  <div class="sub">Donate idle GPU time. Your machine serves open-weight models for the public grid.</div>
+
+  <div class="card">
+    <div class="state-line">
+      <span id="donateLabel" style="font-weight:700">Donating</span>
+      <button id="donate" class="toggle" aria-label="toggle donating"></button>
+      <span style="flex:1"></span>
+      <span id="stateBadge" class="badge">…</span>
+    </div>
+    <div class="row"><label>Model</label><span id="model" class="note">—</span></div>
+    <div class="row"><label>Coordinator</label><input id="coordinator" type="text" /></div>
+    <div class="row"><label>Leaderboard name</label><input id="name" type="text" placeholder="anonymous" /></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><label>Idle before donating (minutes)</label><input id="idleMinutes" type="number" min="1" max="240" style="width:70px" /></div>
+    <div class="row"><label>Active hours (e.g. 22:00-07:00, blank = always)</label><input id="schedule" type="text" placeholder="always" style="width:130px" /></div>
+    <div class="row">
+      <label>Model tier</label>
+      <select id="modelTier">
+        <option value="auto">Auto (biggest that fits)</option>
+      </select>
+    </div>
+    <div class="row"><label>Parallel requests</label><input id="slots" type="number" min="1" max="8" style="width:70px" /></div>
+    <button class="save" id="save">Save</button>
+    <div style="clear:both"></div>
+  </div>
+
+  <div class="card">
+    <div id="log" aria-label="status log"></div>
+  </div>
+
+  <div class="card note">
+    Prompts from grid users are processed on this machine. Only pinned,
+    hash-verified open-weight models run here — no arbitrary code. Pause any
+    time; nothing is donated while you're using the PC.
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let desc = null;
+
+    function log(line) {
+      const el = $('log');
+      const div = document.createElement('div');
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${line}`;
+      el.appendChild(div);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function renderState(s) {
+      const badge = $('stateBadge');
+      badge.textContent = s.donorState;
+      badge.className = 'badge ' + (s.available ? 'available' : 'paused');
+      $('donate').classList.toggle('on', s.donorState !== 'paused');
+      $('model').textContent = s.model ? `${s.model} · engine ${s.engineUp ? 'up' : 'down'} · grid ${s.connected ? 'connected' : 'offline'}` : 'loading…';
+    }
+
+    async function load() {
+      desc = await window.worker.describe();
+      $('coordinator').value = desc.coordinator;
+      $('name').value = desc.settings.name ?? '';
+      $('idleMinutes').value = desc.settings.idleMinutes;
+      $('schedule').value = desc.settings.schedule ?? '';
+      $('slots').value = desc.settings.slots;
+      $('donate').classList.toggle('on', desc.settings.donating);
+      const sel = $('modelTier');
+      for (const m of desc.models) {
+        const o = document.createElement('option');
+        o.value = m; o.textContent = m;
+        sel.appendChild(o);
+      }
+      sel.value = desc.settings.modelTier;
+      if (desc.current) sel.value = desc.current;
+      log('worker version 0.1.0');
+    }
+
+    $('donate').addEventListener('click', () => {
+      const on = !$('donate').classList.contains('on');
+      $('donate').classList.toggle('on', on);
+      window.worker.updateSettings({ donating: on });
+    });
+
+    $('save').addEventListener('click', async () => {
+      await window.worker.updateSettings({
+        coordinator: $('coordinator').value.trim(),
+        name: $('name').value.trim(),
+        idleMinutes: Math.max(1, Number($('idleMinutes').value) || 15),
+        schedule: $('schedule').value.trim() || null,
+        slots: Math.max(1, Number($('slots').value) || 2),
+        modelTier: $('modelTier').value,
+      });
+      log('settings saved');
+    });
+
+    window.worker.onStatus(log);
+    window.worker.onState(renderState);
+    load();
+  </script>
+</body>
+</html>
